@@ -1,0 +1,52 @@
+name: Initialize Flutter Project
+
+on:
+  push:
+    branches:
+      - main   # Or master, depending on your default branch
+    paths-ignore:
+      - '.github/**'  # Don’t re-trigger when only workflows change
+
+jobs:
+  create-flutter-project:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[skip-init]')"  # Prevent infinite loops
+
+    steps:
+      # Checkout the repo
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      # Install Flutter
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.24.0"   # pick your version
+          channel: stable
+
+      # Only run if repo is empty (no lib/main.dart yet)
+      - name: Check if Flutter project exists
+        id: check
+        run: |
+          if [ -f "lib/main.dart" ]; then
+            echo "exists=true" >> $GITHUB_ENV
+          else
+            echo "exists=false" >> $GITHUB_ENV
+          fi
+
+      # Create project if not exists
+      - name: Create Flutter project
+        if: env.exists == 'false'
+        run: |
+          flutter create .
+          flutter pub get
+
+      # Commit and push changes back
+      - name: Commit and Push
+        if: env.exists == 'false'
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Initialize Flutter project [skip-init]" || echo "No changes to commit"
+          git push
