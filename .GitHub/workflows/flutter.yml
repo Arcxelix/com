@@ -1,0 +1,49 @@
+name: Initialize Flutter Project
+
+on:
+  push:
+    branches:
+      - main   # change to "master" if your default branch is master
+
+jobs:
+  create-flutter-project:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true   # allow push back
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.24.0"
+          channel: stable
+
+      - name: Check if Flutter project exists
+        id: check
+        run: |
+          if [ -d "lib" ] && [ -f "pubspec.yaml" ]; then
+            echo "exists=true" >> $GITHUB_ENV
+          else
+            echo "exists=false" >> $GITHUB_ENV
+          fi
+
+      - name: Create Flutter project
+        if: env.exists == 'false'
+        run: |
+          flutter create my_app
+          # move contents into root (optional)
+          shopt -s dotglob
+          mv my_app/* .
+          rm -rf my_app
+
+      - name: Commit and Push
+        if: env.exists == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Initialize Flutter project"
+          git push origin HEAD:main
